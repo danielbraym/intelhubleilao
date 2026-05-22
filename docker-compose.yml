@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: intelhubleilao-postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: dev123
+      POSTGRES_DB: intelhubleilao
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: intelhubleilao-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Node.js
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: intelhubleilao-backend
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASSWORD: dev123
+      DB_NAME: intelhubleilao
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ANALYTICS_URL: http://analytics:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src
+      - /app/node_modules
+    command: npm run dev
+
+  # Analytics FastAPI
+  analytics:
+    build:
+      context: ./analytics
+      dockerfile: Dockerfile
+    container_name: intelhubleilao-analytics
+    environment:
+      PORT: 8000
+      BACKEND_URL: http://backend:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - backend
+
+  # Frontend React (opcional - pode rodar localmente)
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: intelhubleilao-frontend
+  #   ports:
+  #     - "5173:5173"
+  #   depends_on:
+  #     - backend
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: intelhubleilao-network
