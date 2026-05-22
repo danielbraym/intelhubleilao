@@ -1,0 +1,16 @@
+node_modules/
+.git/
+*.md
+.env
+.env.local
+.DS_Store
+*.log
+*.ipynb_checkpoints/
+__pycache__/
+.pytest_cache/
+*.pyc
+dist/
+build/
+.next/
+*.swp
+*.swo
